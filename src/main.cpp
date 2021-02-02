@@ -10,11 +10,13 @@
 
 // Create from `config_template.h`
 #include "config.h"
+#include "types.hpp"
 
 using std::vector;
 
 #define MAX_REGEX_MATCHES 3
 
+// Text looks like "<a href="#">Fajr</a><span>06:08</span></li>"
 const char* regExpression = ">([a-zA-Z]+)</[span]{1,4}><span>([0-9]{2}:[0-9]{2})</span>";
 const String url = "http://islam.no/prayer/get/85";
 // const String url = "http://jigsaw.w3.org/HTTP/connection.html";
@@ -24,7 +26,12 @@ ESP8266WiFiMulti WiFiMulti;
 regex_t regex;
 
 typedef struct {
-    vector<String> matches;
+    String name;
+    String time;
+} matchPair;
+
+typedef struct {
+    matchPair pair;
     long next;
 } regexSubMatch;
 
@@ -39,6 +46,8 @@ void setupRegex(const char* expression) {
 
 regexSubMatch runRegexOnce(String payload) {
     regexSubMatch subMatch;
+    // No match is indicated by subMatch.next == -1
+    subMatch.next = -1;
     char payloadChar[payload.length() + 1];
     regmatch_t matches[MAX_REGEX_MATCHES];
     payload.toCharArray(payloadChar, payload.length());
@@ -46,16 +55,14 @@ regexSubMatch runRegexOnce(String payload) {
     if (!reti)
     {
         subMatch.next = matches[0].rm_eo;
-        // Ignore the first element as it contains the whole string
-        for (size_t i = 1; i < MAX_REGEX_MATCHES; i++)
-        {
-            auto match = matches[i];
-            if (match.rm_so == -1) {
-                break;
-            }
-            Serial.println(payload.substring(match.rm_so, match.rm_eo));
-            subMatch.matches.push_back(payload.substring(match.rm_so, match.rm_eo));
+        if (matches[0].rm_so == -1) {
+            Serial.println("ERROR: Match not found");
+            return subMatch;
         }
+        // Ignore the first element as it contains the whole string
+        // The second match is the name and the third is the time
+        subMatch.pair.name = payload.substring(matches[1].rm_so, matches[1].rm_eo);
+        subMatch.pair.time = payload.substring(matches[2].rm_so, matches[2].rm_eo);
     }
     else if (reti == REG_NOMATCH) {}
     else {
@@ -68,18 +75,56 @@ regexSubMatch runRegexOnce(String payload) {
 }
 
 
-vector<String> runRegex(String payload) {
+vector<matchPair> runRegex(String payload) {
     auto m = runRegexOnce(payload);
-    vector<String> matches;
+    vector<matchPair> matches;
     int pos = 0;
-    while (m.matches.size() > 0) {
+    while (m.next != -1) {
         // Append to the main vector
-        matches.insert(matches.end(), m.matches.begin(), m.matches.end());
+        matches.push_back(m.pair);
         pos += m.next;
+        // Pick the string from the last match onward
         auto sub = payload.substring(pos);
         m = runRegexOnce(sub);
     }
     return matches;
+}
+
+
+// Return prayer times
+vector<matchPair> getTimes(String payload) {
+    // Perform some replacements to regex matching simpler
+    payload.replace("Sol opp", "Sunrise");
+    payload.replace("Sol ned.</span>", "Magrib");
+    // Execute regular expression
+    return runRegex(payload);
+}
+
+
+// Perform an HTTP GET and return an optional that includes the response
+Optional<String> httpGET(String url) {
+    Optional<String> ret;
+    WiFiClient client;
+    HTTPClient http;
+    if (http.begin(client, url)) {
+        // start connection and send HTTP header
+        int httpCode = http.GET();
+        Serial.printf("[HTTP] GET... code: %d\n", httpCode);
+        // httpCode will be negative on error
+        if (httpCode <= 0) {
+            ret.err = http.errorToString(httpCode);
+        }
+        else if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
+            // file found at server
+            ret.value = http.getString();
+            ret.success = true;
+        }
+        http.end();
+    }
+    else {
+        ret.err = "[HTTP} Unable to connect";
+    }
+    return ret;
 }
 
 
@@ -111,49 +156,15 @@ void loop()
     // wait for WiFi connection
     if ((WiFiMulti.run() == WL_CONNECTED))
     {
-
-        WiFiClient client;
-        HTTPClient http;
-
-        Serial.print("[HTTP] begin...\n");
-        if (http.begin(client, url))
-        { // HTTP
-
-            Serial.print("[HTTP] GET...\n");
-            // start connection and send HTTP header
-            int httpCode = http.GET();
-
-            // httpCode will be negative on error
-            if (httpCode > 0)
-            {
-                // HTTP header has been send and Server response header has been handled
-                Serial.printf("[HTTP] GET... code: %d\n", httpCode);
-
-                // file found at server
-                if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY)
-                {
-                    String payload = http.getString();
-                    // Serial.println(payload);
-
-                    // Perform some replacements to regex matching simpler
-                    payload.replace("Sol opp", "Sunrise");
-                    payload.replace("Sol ned.</span>", "Magrib");
-
-                    /* Execute regular expression */
-                    auto matches = runRegex(payload);
-                    Serial.println("*****************************");
-                }
+        auto httpResponse = httpGET(url);
+        if (httpResponse.success) {
+            auto matches = getTimes(httpResponse.value);
+            for (auto&& pair : matches) {
+                Serial.printf("%s %s\n", pair.name.c_str(), pair.time.c_str());
             }
-            else
-            {
-                Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
-            }
-
-            http.end();
         }
-        else
-        {
-            Serial.printf("[HTTP} Unable to connect\n");
+        else {
+            Serial.printf("ERROR: HTTP request failed with error: %s\n", httpResponse.err.c_str());
         }
     }
 

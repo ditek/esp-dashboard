@@ -20,12 +20,14 @@ const String url = "http://islam.no/prayer/get/85";
 // const String url = "http://jigsaw.w3.org/HTTP/connection.html";
 
 ESP8266WiFiMulti WiFiMulti;
+vector<matchPair> times;
+uint8_t timeIndex;
 
 
 // Return prayer times
-vector<matchPair> getTimes(String payload) {
+vector<matchPair> getTimesFromHTML(String payload) {
     // Perform some replacements to regex matching simpler
-    payload.replace("Sol opp", "Sunrise");
+    payload.replace("Sol opp", "Sun");
     payload.replace("Sol ned.</span>", "Magrib");
     // Execute regular expression
     return runRegex(payload);
@@ -58,6 +60,30 @@ Optional<String> httpGET(String url) {
 }
 
 
+// Fetch times from the server
+void updateTimes() {
+    // Wait for WiFi connection
+    if ((WiFiMulti.run() == WL_CONNECTED))
+    {
+        auto httpResponse = httpGET(url);
+        if (httpResponse.success) {
+            times = getTimesFromHTML(httpResponse.value);
+        }
+        else {
+            Serial.printf("ERROR: HTTP request failed with error: %s\n", httpResponse.err.c_str());
+        }
+    }
+}
+
+// Increment a number within the range of `max`
+void increment(uint8_t* i, size_t max) {
+    if (*i + 1 < uint16_t(max)) {
+        *i += 1;
+    }
+    *i = 0;
+}
+
+
 void setup()
 {
     Serial.begin(115200);
@@ -73,25 +99,24 @@ void setup()
 
 void loop()
 {
-    // wait for WiFi connection
-    if ((WiFiMulti.run() == WL_CONNECTED))
-    {
-        auto httpResponse = httpGET(url);
-        if (httpResponse.success) {
-            auto matches = getTimes(httpResponse.value);
-            for (auto&& pair : matches) {
-                Serial.printf("%-10s %s\n", pair.name.c_str(), pair.time.c_str());
-                display.printf("%-10s %s\n", pair.name.c_str(), pair.time.c_str());
-            }
-        }
-        else {
-            Serial.printf("ERROR: HTTP request failed with error: %s\n", httpResponse.err.c_str());
-        }
+    while (times.size() == 0) {
+        updateTimes();
+        delay(1000);
     }
+
+    if (timeIndex < times.size()) {
+        auto time = times.at(timeIndex);
+        display.println(time.name.c_str());
+        display.println(time.time.c_str());
+    }
+    else {
+        Serial.printf("ERROR: unexpected timeIndex value: %u\n", timeIndex);
+    }
+    increment(&timeIndex, times.size());
 
     yield();
     display.display();
     display.clearDisplay();
     display.setCursor(0, 0);
-    delay(10000);
+    delay(2000);
 }

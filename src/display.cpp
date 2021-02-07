@@ -22,7 +22,8 @@ void setupDisplay()
     display.display();
 
     // text display tests
-    display.setTextSize(1);
+    display.setTextSize(4);
+    display.setTextWrap(false);
     display.setTextColor(SSD1306_WHITE);
     display.setCursor(0, 0);
     display.display();

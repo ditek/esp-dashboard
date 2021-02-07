@@ -11,6 +11,7 @@
 // Create from `config_template.h`
 #include "config.h"
 #include "types.hpp"
+#include "display.h"
 
 using std::vector;
 
@@ -132,19 +133,9 @@ void setup()
 {
     Serial.begin(115200);
 
-    Serial.println();
-    Serial.println();
-    Serial.println();
-
     /* Compile regular expression */
     setupRegex(regExpression);
-
-    for (uint8_t t = 4; t > 0; t--)
-    {
-        Serial.printf("[SETUP] WAIT %d...\n", t);
-        Serial.flush();
-        delay(1000);
-    }
+    setupDisplay();
 
     WiFi.mode(WIFI_STA);
     WiFiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
@@ -160,7 +151,8 @@ void loop()
         if (httpResponse.success) {
             auto matches = getTimes(httpResponse.value);
             for (auto&& pair : matches) {
-                Serial.printf("%s %s\n", pair.name.c_str(), pair.time.c_str());
+                Serial.printf("%-10s %s\n", pair.name.c_str(), pair.time.c_str());
+                display.printf("%-10s %s\n", pair.name.c_str(), pair.time.c_str());
             }
         }
         else {
@@ -168,5 +160,9 @@ void loop()
         }
     }
 
+    yield();
+    display.display();
+    display.clearDisplay();
+    display.setCursor(0, 0);
     delay(10000);
 }

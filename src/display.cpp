@@ -28,3 +28,8 @@ void setupDisplay()
     display.setCursor(0, 0);
     display.display();
 }
+
+void resetDisplay() {
+    display.clearDisplay();
+    display.setCursor(0, 0);
+}

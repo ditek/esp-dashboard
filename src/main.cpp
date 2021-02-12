@@ -11,6 +11,7 @@
 #include "types.hpp"
 #include "regex_matcher.h"
 #include "display.h"
+#include "ccs811_utils.h"
 
 using std::vector;
 
@@ -91,7 +92,9 @@ void setup()
     /* Compile regular expression */
     setupRegex(regExpression);
     setupDisplay();
+    setupSensor();
 
+    // WiFi.persistent(false);
     WiFi.mode(WIFI_STA);
     WiFiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
 }
@@ -101,7 +104,13 @@ void loop()
 {
     while (times.size() == 0) {
         updateTimes();
-        delay(1000);
+        if (times.size() == 0) {
+            Serial.println("ERROR: Failed to update times");
+            display.println("Loading...");
+            display.display();
+            resetDisplay();
+            delay(1000);
+        }
     }
 
     if (timeIndex < times.size()) {
@@ -113,6 +122,8 @@ void loop()
         Serial.printf("ERROR: unexpected timeIndex value: %u\n", timeIndex);
     }
     increment(&timeIndex, times.size());
+
+    runSensor();
 
     yield();
     display.display();

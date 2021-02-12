@@ -77,11 +77,11 @@ void updateTimes() {
 }
 
 // Increment a number within the range of `max`
-void increment(uint8_t* i, size_t max) {
-    if (*i + 1 < uint16_t(max)) {
-        *i += 1;
+uint8_t increment(uint8_t i, size_t max) {
+    if (i + 1 < uint16_t(max)) {
+        return i + 1;
     }
-    *i = 0;
+    return 0;
 }
 
 
@@ -122,7 +122,7 @@ void loop()
     else {
         Serial.printf("ERROR: unexpected timeIndex value: %u\n", timeIndex);
     }
-    increment(&timeIndex, times.size());
+    timeIndex = increment(timeIndex, times.size());
 
     auto reading = getSensorReading();
     if (reading.valid) {

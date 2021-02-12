@@ -23,19 +23,21 @@ void setupSensor() {
     if (!ok) Serial.println("setup: CCS811 start FAILED");
 }
 
-void runSensor() {
+sensorReading getSensorReading() {
     uint16_t eco2, etvoc, errstat, raw;
     ccs811.read(&eco2, &etvoc, &errstat, &raw);
 
     // Print measurement results based on status
     if (errstat == CCS811_ERRSTAT_OK) {
-        Serial.print("CCS811: ");
-        Serial.print("eco2=");  Serial.print(eco2);     Serial.print(" ppm  ");
-        Serial.print("etvoc="); Serial.print(etvoc);    Serial.print(" ppb  ");
+        // Serial.print("CCS811: ");
+        // Serial.print("eco2=");  Serial.print(eco2);     Serial.print(" ppm  ");
+        // Serial.print("etvoc="); Serial.print(etvoc);    Serial.print(" ppb  ");
         // Serial.print("raw6=");  Serial.print(raw/1024); Serial.print(" uA  "); 
         // Serial.print("raw10="); Serial.print(raw%1024); Serial.print(" ADC  ");
         // Serial.print("R="); Serial.print((1650*1000L/1023)*(raw%1024)/(raw/1024)); Serial.print(" ohm");
-        Serial.println();
+        // Serial.println();
+
+        return sensorReading(eco2, etvoc);
     }
     else if (errstat == CCS811_ERRSTAT_OK_NODATA) {
         Serial.println("CCS811: waiting for (new) data");
@@ -52,4 +54,5 @@ void runSensor() {
             errCnt = 0;
         }
     }
+    return sensorReading(false);
 }

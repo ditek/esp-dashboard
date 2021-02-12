@@ -104,6 +104,7 @@ void loop()
 {
     while (times.size() == 0) {
         updateTimes();
+        Serial.printf("Found %u times\n", times.size());
         if (times.size() == 0) {
             Serial.println("ERROR: Failed to update times");
             display.println("Loading...");
@@ -123,7 +124,10 @@ void loop()
     }
     increment(&timeIndex, times.size());
 
-    runSensor();
+    auto reading = getSensorReading();
+    if (reading.valid) {
+        Serial.printf("CCS811: eco2=%u ppm  etvoc=%u ppb\n", reading.eco2, reading.etvoc);
+    }
 
     yield();
     display.display();

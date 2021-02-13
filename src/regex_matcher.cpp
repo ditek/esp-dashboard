@@ -28,7 +28,7 @@ regexSubMatch runRegexOnce(String payload) {
         // Ignore the first element as it contains the whole string
         // The second match is the name and the third is the time
         subMatch.pair.name = payload.substring(matches[1].rm_so, matches[1].rm_eo);
-        subMatch.pair.time = payload.substring(matches[2].rm_so, matches[2].rm_eo);
+        subMatch.pair.value = payload.substring(matches[2].rm_so, matches[2].rm_eo);
     }
     else if (reti == REG_NOMATCH) {}
     else {
@@ -41,9 +41,9 @@ regexSubMatch runRegexOnce(String payload) {
 }
 
 
-vector<matchPair> runRegex(String payload) {
+vector<dataPair> runRegex(String payload) {
     auto m = runRegexOnce(payload);
-    vector<matchPair> matches;
+    vector<dataPair> matches;
     int pos = 0;
     while (m.next != -1) {
         // Append to the main vector

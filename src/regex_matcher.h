@@ -10,13 +10,13 @@ using std::vector;
 
 typedef struct {
     String name;
-    String time;
-} matchPair;
+    String value;
+} dataPair;
 
 typedef struct {
-    matchPair pair;
+    dataPair pair;
     long next;
 } regexSubMatch;
 
 void setupRegex(const char* expression);
-vector<matchPair> runRegex(String payload);
+vector<dataPair> runRegex(String payload);

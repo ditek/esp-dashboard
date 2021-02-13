@@ -21,12 +21,18 @@ const String url = "http://islam.no/prayer/get/85";
 // const String url = "http://jigsaw.w3.org/HTTP/connection.html";
 
 ESP8266WiFiMulti WiFiMulti;
-vector<matchPair> times;
-uint8_t timeIndex;
+
+#define NUM_PRAYER_TIMES 6
+#define NUM_SENSOR_DATA 2
+#define CO2_INDEX NUM_PRAYER_TIMES+0
+#define VOC_INDEX NUM_PRAYER_TIMES+1
+
+vector<dataPair> dataVector(NUM_PRAYER_TIMES + NUM_SENSOR_DATA);
+uint8_t dataIndex;
 
 
 // Return prayer times
-vector<matchPair> getTimesFromHTML(String payload) {
+vector<dataPair> getTimesFromHTML(String payload) {
     // Perform some replacements to regex matching simpler
     payload.replace("Sol opp", "Sun");
     payload.replace("Sol ned.</span>", "Magrib");
@@ -61,19 +67,28 @@ Optional<String> httpGET(String url) {
 }
 
 
-// Fetch times from the server
-void updateTimes() {
+// Fetch times from the server. Returns true on success.
+bool updateTimes() {
     // Wait for WiFi connection
     if ((WiFiMulti.run() == WL_CONNECTED))
     {
         auto httpResponse = httpGET(url);
         if (httpResponse.success) {
-            times = getTimesFromHTML(httpResponse.value);
+            auto newDataVector = getTimesFromHTML(httpResponse.value);
+            if (newDataVector.size() > dataVector.size()) {
+                Serial.printf("ERROR: Size mismatch. %u > %u\n", newDataVector.size(), dataVector.size());
+                exit(1);
+            }
+            for (size_t i = 0; i < newDataVector.size(); i++) {
+                dataVector.at(i) = newDataVector.at(i);
+            }
         }
         else {
             Serial.printf("ERROR: HTTP request failed with error: %s\n", httpResponse.err.c_str());
         }
+        return httpResponse.success;
     }
+    return false;
 }
 
 // Increment a number within the range of `max`
@@ -94,6 +109,9 @@ void setup()
     setupDisplay();
     setupSensor();
 
+    dataVector.at(CO2_INDEX).name = "CO2";
+    dataVector.at(VOC_INDEX).name = "VOC";
+
     // WiFi.persistent(false);
     WiFi.mode(WIFI_STA);
     WiFiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
@@ -102,31 +120,29 @@ void setup()
 
 void loop()
 {
-    while (times.size() == 0) {
-        updateTimes();
-        Serial.printf("Found %u times\n", times.size());
-        if (times.size() == 0) {
-            Serial.println("ERROR: Failed to update times");
-            display.println("Loading...");
-            display.display();
-            resetDisplay();
-            delay(1000);
-        }
+    while (!updateTimes()) {
+        Serial.println("ERROR: Failed to update times");
+        display.println("Loading...");
+        display.display();
+        resetDisplay();
+        delay(1000);
     }
 
-    if (timeIndex < times.size()) {
-        auto time = times.at(timeIndex);
-        display.println(time.name.c_str());
-        display.println(time.time.c_str());
+    if (dataIndex < dataVector.size()) {
+        auto data = dataVector.at(dataIndex);
+        display.println(data.name.c_str());
+        display.println(data.value.c_str());
     }
     else {
-        Serial.printf("ERROR: unexpected timeIndex value: %u\n", timeIndex);
+        Serial.printf("ERROR: unexpected dataIndex value: %u\n", dataIndex);
     }
-    timeIndex = increment(timeIndex, times.size());
+    dataIndex = increment(dataIndex, dataVector.size());
 
     auto reading = getSensorReading();
     if (reading.valid) {
         Serial.printf("CCS811: eco2=%u ppm  etvoc=%u ppb\n", reading.eco2, reading.etvoc);
+        dataVector.at(CO2_INDEX).value = reading.eco2;
+        dataVector.at(VOC_INDEX).value = reading.etvoc;
     }
 
     yield();

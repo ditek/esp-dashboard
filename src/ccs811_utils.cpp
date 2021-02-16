@@ -13,11 +13,6 @@ void setupSensor() {
     bool ok = ccs811.begin();
     if (!ok) Serial.println("setup: CCS811 begin FAILED");
 
-    // Print CCS811 versions
-    Serial.print("setup: hardware    version: "); Serial.println(ccs811.hardware_version(), HEX);
-    Serial.print("setup: bootloader  version: "); Serial.println(ccs811.bootloader_version(), HEX);
-    Serial.print("setup: application version: "); Serial.println(ccs811.application_version(), HEX);
-
     // Start measuring
     ok = ccs811.start(CCS811_MODE_1SEC);
     if (!ok) Serial.println("setup: CCS811 start FAILED");
@@ -29,14 +24,6 @@ sensorReading getSensorReading() {
 
     // Print measurement results based on status
     if (errstat == CCS811_ERRSTAT_OK) {
-        // Serial.print("CCS811: ");
-        // Serial.print("eco2=");  Serial.print(eco2);     Serial.print(" ppm  ");
-        // Serial.print("etvoc="); Serial.print(etvoc);    Serial.print(" ppb  ");
-        // Serial.print("raw6=");  Serial.print(raw/1024); Serial.print(" uA  "); 
-        // Serial.print("raw10="); Serial.print(raw%1024); Serial.print(" ADC  ");
-        // Serial.print("R="); Serial.print((1650*1000L/1023)*(raw%1024)/(raw/1024)); Serial.print(" ohm");
-        // Serial.println();
-
         return sensorReading(eco2, etvoc);
     }
     else if (errstat == CCS811_ERRSTAT_OK_NODATA) {

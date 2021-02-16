@@ -12,6 +12,7 @@
 #include "regex_matcher.h"
 #include "display.h"
 #include "ccs811_utils.h"
+#include "si7021.h"
 
 using std::vector;
 
@@ -108,6 +109,7 @@ void setup()
     setupRegex(regExpression);
     setupDisplay();
     setupSensor();
+    setupSi7021();
 
     dataVector.at(CO2_INDEX).name = "CO2";
     dataVector.at(VOC_INDEX).name = "VOC";
@@ -144,10 +146,13 @@ void loop()
         dataVector.at(CO2_INDEX).value = reading.eco2;
         dataVector.at(VOC_INDEX).value = reading.etvoc;
     }
+    yield();
+
+    Serial.printf("Humidity: %.2f \tTemp %.2f C\n", getHumidity(), getTemperature());
 
     yield();
     display.display();
     display.clearDisplay();
     display.setCursor(0, 0);
-    delay(2000);
+    delay(1000);
 }

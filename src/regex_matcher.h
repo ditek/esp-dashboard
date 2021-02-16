@@ -8,15 +8,15 @@ using std::vector;
 
 #define MAX_REGEX_MATCHES 3
 
-typedef struct {
+struct dataPair{
     String name;
     String value;
-} dataPair;
+};
 
-typedef struct {
+struct regexSubMatch {
     dataPair pair;
     long next;
-} regexSubMatch;
+};
 
 void setupRegex(const char* expression);
 vector<dataPair> runRegex(String payload);

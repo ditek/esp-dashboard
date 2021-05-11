@@ -142,13 +142,16 @@ void loop()
 
     auto reading = getSensorReading();
     if (reading.valid) {
-        Serial.printf("CCS811: eco2=%u ppm  etvoc=%u ppb\n", reading.eco2, reading.etvoc);
+        Serial.printf("CCS811: eco2=%u ppm  etvoc=%u ppb  ", reading.eco2, reading.etvoc);
         dataVector.at(CO2_INDEX).value = reading.eco2;
         dataVector.at(VOC_INDEX).value = reading.etvoc;
-    }
-    yield();
+        yield();
 
-    Serial.printf("Humidity: %.2f \tTemp %.2f C\n", getHumidity(), getTemperature());
+        auto h = getHumidity();
+        auto t = getTemperature();
+        Serial.printf("Humidity: %.2f  Temp %.2f C\n", h, t);
+        ccs811.set_envdata(t, h);
+    }
 
     yield();
     display.display();

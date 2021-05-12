@@ -1,10 +1,10 @@
 #include "display.h"
+#include "i2c_mux.h"
 
 Adafruit_SSD1306 display = Adafruit_SSD1306(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
 
 
-void setupDisplay()
-{
+void setupSingleDisplay(){
     Serial.println("OLED FeatherWing test");
     // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
     display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
@@ -29,7 +29,19 @@ void setupDisplay()
     display.display();
 }
 
+// Initialize the displays 
+void setupDisplay() {
+    for (int i = 0; i <= 5; i++) {
+        i2c_select(i);   // Loop through each connected displays on the I2C buses  
+        setupSingleDisplay();
+    }
+}
+
 void resetDisplay() {
     display.clearDisplay();
     display.setCursor(0, 0);
+}
+
+void selectDisplay(uint8_t i){
+    i2c_select(i);
 }

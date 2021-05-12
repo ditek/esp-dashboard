@@ -104,9 +104,11 @@ uint8_t increment(uint8_t i, size_t max) {
 void setup()
 {
     Serial.begin(115200);
+    Wire.begin();
 
     /* Compile regular expression */
     setupRegex(regExpression);
+
     setupDisplay();
     setupSensor();
     setupSi7021();

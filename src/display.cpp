@@ -15,7 +15,7 @@ void setupSingleDisplay(){
     // Since the buffer is intialized with an Adafruit splashscreen
     // internally, this will display the splashscreen.
     display.display();
-    delay(1000);
+    delay(500);
 
     // Clear the buffer.
     display.clearDisplay();
@@ -31,10 +31,11 @@ void setupSingleDisplay(){
 
 // Initialize the displays 
 void setupDisplay() {
-    for (int i = 0; i <= 5; i++) {
+    for (uint8_t i = 0; i < NUM_DISPLAYS; i++) {
         i2c_select(i);   // Loop through each connected displays on the I2C buses  
         setupSingleDisplay();
     }
+    i2c_select(0);   // Loop through each connected displays on the I2C buses  
 }
 
 void resetDisplay() {
@@ -43,5 +44,27 @@ void resetDisplay() {
 }
 
 void selectDisplay(uint8_t i){
-    i2c_select(i);
+    if (i < NUM_DISPLAYS){
+        i2c_select(i);
+    }
+}
+
+void displayDataVector(std::vector<dataItem> dataVector, bool withSuffix) {
+    for (uint8_t i = 0; i < NUM_DISPLAYS; i++) {
+        i2c_select(i);
+        resetDisplay();
+        if (i >= dataVector.size()) {
+            display.display();
+            continue;
+        }
+        auto data = dataVector.at(i);
+        display.print(data.value.c_str());
+        if (withSuffix) {
+            display.setTextSize(3);
+            display.print(' ');
+            display.print(data.suffix.c_str());
+            display.setTextSize(4);
+        }
+        display.display();
+    }
 }

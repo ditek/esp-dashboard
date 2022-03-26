@@ -7,3 +7,10 @@ public:
     bool success;
     String err;
 };
+
+
+struct dataItem {
+    String name;
+    String value;
+    String suffix;
+};

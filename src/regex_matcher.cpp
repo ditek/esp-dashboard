@@ -41,9 +41,9 @@ regexSubMatch runRegexOnce(String payload) {
 }
 
 
-vector<dataPair> runRegex(String payload) {
+vector<dataItem> runRegex(String payload) {
     auto m = runRegexOnce(payload);
-    vector<dataPair> matches;
+    vector<dataItem> matches;
     int pos = 0;
     while (m.next != -1) {
         // Append to the main vector

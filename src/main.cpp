@@ -13,6 +13,7 @@
 #include "display.h"
 #include "ccs811_utils.h"
 #include "si7021.h"
+#include "utils.h"
 
 using std::vector;
 
@@ -24,16 +25,18 @@ const String url = "http://islam.no/prayer/get/85";
 ESP8266WiFiMulti WiFiMulti;
 
 #define NUM_PRAYER_TIMES 6
-#define NUM_SENSOR_DATA 2
-#define CO2_INDEX NUM_PRAYER_TIMES+0
-#define VOC_INDEX NUM_PRAYER_TIMES+1
+#define NUM_SENSOR_DATA 4
+#define CO2_INDEX 0
+#define VOC_INDEX 1
+#define TEMP_INDEX 2
+#define HUMIDITY_INDEX 3
 
-vector<dataPair> dataVector(NUM_PRAYER_TIMES + NUM_SENSOR_DATA);
-uint8_t dataIndex;
+// vector<dataItem> dataVector(NUM_PRAYER_TIMES + NUM_SENSOR_DATA);
+// uint8_t dataIndex;
 
 
 // Return prayer times
-vector<dataPair> getTimesFromHTML(String payload) {
+vector<dataItem> getTimesFromHTML(String payload) {
     // Perform some replacements to regex matching simpler
     payload.replace("Sol opp", "Sun");
     payload.replace("Sol ned.</span>", "Magrib");
@@ -69,27 +72,48 @@ Optional<String> httpGET(String url) {
 
 
 // Fetch times from the server. Returns true on success.
-bool updateTimes() {
+// bool updateTimes() {
+//     // Wait for WiFi connection
+//     if ((WiFiMulti.run() == WL_CONNECTED))
+//     {
+//         auto httpResponse = httpGET(url);
+//         if (httpResponse.success) {
+//             auto newDataVector = getTimesFromHTML(httpResponse.value);
+//             if (newDataVector.size() > dataVector.size()) {
+//                 Serial.printf("ERROR: Size mismatch. %u > %u\n", newDataVector.size(), dataVector.size());
+//                 display.println("ERR 0");
+//                 exit(1);
+//             }
+//             for (size_t i = 0; i < newDataVector.size(); i++) {
+//                 dataVector.at(i) = newDataVector.at(i);
+//             }
+//         }
+//         else {
+//             Serial.printf("ERROR: HTTP request failed with error: %s\n", httpResponse.err.c_str());
+//         }
+//         return httpResponse.success;
+//     }
+//     return false;
+// }
+
+// Fetch times from the server. Returns true on success.
+Optional < std::vector<dataItem>> getTimes() {
+    Optional < std::vector<dataItem>> result;
     // Wait for WiFi connection
     if ((WiFiMulti.run() == WL_CONNECTED))
     {
         auto httpResponse = httpGET(url);
         if (httpResponse.success) {
-            auto newDataVector = getTimesFromHTML(httpResponse.value);
-            if (newDataVector.size() > dataVector.size()) {
-                Serial.printf("ERROR: Size mismatch. %u > %u\n", newDataVector.size(), dataVector.size());
-                exit(1);
-            }
-            for (size_t i = 0; i < newDataVector.size(); i++) {
-                dataVector.at(i) = newDataVector.at(i);
-            }
+            result.value = getTimesFromHTML(httpResponse.value);
         }
         else {
+            display.println("HttpErr");
             Serial.printf("ERROR: HTTP request failed with error: %s\n", httpResponse.err.c_str());
+            result.err = httpResponse.err;
         }
-        return httpResponse.success;
+        result.success = httpResponse.success;
     }
-    return false;
+    return result;
 }
 
 // Increment a number within the range of `max`
@@ -101,8 +125,7 @@ uint8_t increment(uint8_t i, size_t max) {
 }
 
 
-void setup()
-{
+void setup() {
     Serial.begin(115200);
     Wire.begin();
 
@@ -113,51 +136,52 @@ void setup()
     setupSensor();
     setupSi7021();
 
-    dataVector.at(CO2_INDEX).name = "CO2";
-    dataVector.at(VOC_INDEX).name = "VOC";
-
     // WiFi.persistent(false);
     WiFi.mode(WIFI_STA);
     WiFiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
 }
 
 
-void loop()
-{
-    while (!updateTimes()) {
-        Serial.println("ERROR: Failed to update times");
+void loop() {
+    
+    auto times = getTimes();
+    while (!times.success) {
         display.println("Loading...");
         display.display();
         resetDisplay();
         delay(1000);
     }
 
-    if (dataIndex < dataVector.size()) {
-        auto data = dataVector.at(dataIndex);
-        display.println(data.name.c_str());
-        display.println(data.value.c_str());
-    }
-    else {
-        Serial.printf("ERROR: unexpected dataIndex value: %u\n", dataIndex);
-    }
-    dataIndex = increment(dataIndex, dataVector.size());
+    displayDataVector(times.value, false);
+    delay(10000);
 
     auto reading = getSensorReading();
     if (reading.valid) {
-        Serial.printf("CCS811: eco2=%u ppm  etvoc=%u ppb  ", reading.eco2, reading.etvoc);
-        dataVector.at(CO2_INDEX).value = reading.eco2;
-        dataVector.at(VOC_INDEX).value = reading.etvoc;
+        vector<dataItem> sensorData(NUM_SENSOR_DATA);
+      
+        sensorData.at(CO2_INDEX).name = "CO2";
+        sensorData.at(CO2_INDEX).value = reading.eco2;
+        sensorData.at(CO2_INDEX).suffix = "p";
+        sensorData.at(VOC_INDEX).name = "VOC";
+        sensorData.at(VOC_INDEX).value = reading.etvoc;
+        sensorData.at(VOC_INDEX).suffix = "p";
         yield();
 
-        auto h = getHumidity();
         auto t = getTemperature();
+        sensorData.at(TEMP_INDEX).name = "Temp";
+        sensorData.at(TEMP_INDEX).value = floatToString(t);
+        sensorData.at(TEMP_INDEX).suffix = (char)247;
+        auto h = getHumidity();
+        sensorData.at(HUMIDITY_INDEX).name = "Humidity";
+        sensorData.at(HUMIDITY_INDEX).value = floatToString(h);
+        sensorData.at(HUMIDITY_INDEX).suffix = "%";
+        
+        Serial.printf("CCS811: eco2=%u ppm  etvoc=%u ppb  ", reading.eco2, reading.etvoc);
         Serial.printf("Humidity: %.2f  Temp %.2f C\n", h, t);
         ccs811.set_envdata(t, h);
+
+        displayDataVector(sensorData, true);
     }
 
-    yield();
-    display.display();
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    delay(1000);
+    delay(10000);
 }

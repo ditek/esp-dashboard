@@ -129,31 +129,37 @@ void setup() {
     Serial.begin(115200);
     Wire.begin();
 
-    /* Compile regular expression */
-    setupRegex(regExpression);
+    if (DISPLAY_PRAYER_TIMES) {
+        /* Compile regular expression */
+        setupRegex(regExpression);
+    }
 
     setupDisplay();
     setupSensor();
     setupSi7021();
 
-    // WiFi.persistent(false);
-    WiFi.mode(WIFI_STA);
-    WiFiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
+    if (DISPLAY_PRAYER_TIMES) {
+        // WiFi.persistent(false);
+        WiFi.mode(WIFI_STA);
+        WiFiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
+    }
 }
 
 
 void loop() {
-    
-    auto times = getTimes();
-    while (!times.success) {
-        display.println("Loading...");
-        display.display();
-        resetDisplay();
-        delay(1000);
-    }
+    if (DISPLAY_PRAYER_TIMES) {
+        auto times = getTimes();
+        while (!times.success) {
+            display.println("Loading...");
+            display.display();
+            resetDisplay();
+            delay(1000);
+            times = getTimes();
+        }
 
-    displayDataVector(times.value, false);
-    delay(10000);
+        displayDataVector(times.value, false);
+        delay(10000);
+    }
 
     auto reading = getSensorReading();
     if (reading.valid) {

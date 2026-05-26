@@ -2,7 +2,7 @@
 
 ESP Dashboard is a PlatformIO/Arduino firmware project for an ESP8266 NodeMCU v2. It drives six small SSD1306 OLED displays through a TCA9548 I2C multiplexer, fetches prayer times over Wi-Fi, and alternates them with indoor air-quality and climate readings.
 
-![ESP Dashboard breadboard prototype](assets/project-photo.jpg)
+<img src="assets/project-photo.jpg" alt="ESP Dashboard breadboard prototype" width="420">
 
 ## Features
 
